@@ -1,4 +1,4 @@
-module.exports.set = function(app, util) {
+module.exports.set = function(app, util, async) {
     // put more app route listings here
 
     //Aggregate all the API products from all the participating orgs
@@ -37,10 +37,16 @@ module.exports.set = function(app, util) {
     app.post('/o/:orgname/apiproducts', function (req, res) {
         res.status(403).end();
     });
-    app.put('/o/:orgname/apiproducts/:product_name', function (req, res) {
+    app.put('/o/:orgname/apiproducts', function (req, res) {
+        res.status(403).end();
+    });
+    app.delete('/o/:orgname/apiproducts', function (req, res) {
         res.status(403).end();
     });
     app.post('/o/:orgname/apiproducts/:product_name', function (req, res) {
+        res.status(403).end();
+    });
+    app.put('/o/:orgname/apiproducts/:product_name', function (req, res) {
         res.status(403).end();
     });
     app.delete('/o/:orgname/apiproducts/:product_name', function (req, res) {
