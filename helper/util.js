@@ -19,7 +19,7 @@ if(apigee.getMode() === apigee.APIGEE_MODE) {
         async.parallel(tasks, function(err, rs){
             Object.keys(rs).forEach(function(j){
                 $r = rs[j].split(",");
-                all_orgs[all_orgs.length] = {
+                all_orgs[$r[1]] = {
                     endpoint : $r[0],
                     org: $r[1],
                     authorization: "Basic " + new Buffer($r[2] + ":" + $r[3]).toString("base64"),
@@ -29,26 +29,29 @@ if(apigee.getMode() === apigee.APIGEE_MODE) {
         });
     });
 } else {
-    all_orgs = [
+    all_orgs = {
+        'gkli' :
         {
             org: 'gkli',
             endpoint : 'https://api.enterprise.apigee.com/v1',
             authorization : ''
         },
+        'gkoli_orgadmin3':
         {
             org: 'gkoli_orgadmin3',
             endpoint : 'https://api.enterprise.apigee.com/v1',
             authorization: '',
         }
-    ];
+    };
 }
 
-module.exports = {
+var self = module.exports = {
     initialize : function(app){
         app.use(bodyParser.json()); // for parsing application/json
         app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
         app.use(function(req,res,next){
+            console.log(req.method + "  " + req.url);
             if(apigee.getMode() === apigee.APIGEE_MODE) {
                 if(all_orgs.length === 0) {
                     res.json({error: "Org Configuration not set correctly in vault"})
@@ -63,37 +66,71 @@ module.exports = {
                 next();
             }
         });
+
+    },
+    catch_all_route : function(app) {
+        if(apigee.getMode() !== apigee.APIGEE_MODE) {
+            /*
+             * Catch all function for when doing local development
+             *
+             * This will run the calls against the first org in the settings
+             */
+
+            app.all('*', function(req,res){
+                console.log("catch All : " + req.url);
+                var resource = req.url.split("/").splice(3).join("/");
+                $tasks = self.get_aggregator_tasks(req, "/" + resource);
+                $tasks = $tasks.splice(0,1);
+                async.parallel($tasks, function(err,results){
+                    res.json(results[0].body);
+                    res.status(results[0].status_code).end();
+                });
+            });
+        }
+    },
+    get_aggregator_task : function(req, resource, org_name){
+        var $org = all_orgs[org_name];
+        var $task = function (callback){
+            request({
+                'method': req.method,
+                'uri': $org['endpoint'] + '/o/' + $org['org'] + resource,
+                'headers': {
+                    'Accept': req.header('accept'),
+                    'Authorization' : $org['authorization'],
+                    'Content-Type' : req.header('content-type'),
+                },
+                'qs': req.query,
+                'body' : JSON.stringify(req.body),
+            }, function (err, response, body) {
+                if(err) {
+                    return callback(null, {error: err});
+                } else {
+                    try{
+                        body = JSON.parse(body);
+                    } catch($e){
+                        //Ignore parsing errors
+                    }
+                    return callback(null, {org: $org['org'], body: body, status_code:  response.statusCode , response_headers : response.headers});
+                }
+            });
+
+        }
+        return $task;
     },
     get_aggregator_tasks : function(req, resource) {
         var tasks = [];
         Object.keys(all_orgs).forEach(function ($index) {
-            var $org = all_orgs[$index];
-            this.push(function (callback){
-                request({
-                    'method': req.method,
-                    'uri': $org['endpoint'] + '/o/' + $org['org'] + resource,
-                    'headers': {
-                        'Accept': req.header('accept'),
-                        'Authorization' : $org['authorization'],
-                        'Content-Type' : req.header('content-type'),
-                    },
-                    'qs': req.query,
-                    'body' : JSON.stringify(req.body),
-                }, function (err, response, body) {
-                    if(err) {
-                        return callback(null, {error: err});
-                    } else {
-                        try{
-                            body = JSON.parse(body);
-                        } catch($e){
-                            //Ignore parsing errors
-                        }
-                        return callback(null, {org: $org['org'], body: body, status_code:  response.statusCode , response_headers : response.headers});
-                    }
-                });
-
-            });
+            this.push(self.get_aggregator_task(req, resource, $index));
         }, tasks);
         return tasks;
+    },
+    format_product_name : function(org, product_name) {
+        return "{{" + org + "}}"+product_name;
+    },
+    parse_product_from_str: function($str){
+        return $str.indexOf("}}") !== -1 ? $str.substring($str.indexOf("}}") + 2) : $str;
+    },
+    parse_org_from_product_name : function($product){
+        return $product.indexOf("}}") === -1 ? null : $product.substr(2, $product.indexOf("}}") - 2);
     }
 }

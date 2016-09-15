@@ -1,3 +1,5 @@
+var _ = require('underscore')._;
+
 var app_helper = {
 
     /**
@@ -7,6 +9,9 @@ var app_helper = {
         async.parallel(util.get_aggregator_tasks(req, resource), function(err,results){
             $result = null;
             Object.keys(results).forEach(function($i){
+                if(results[$i].status_code !== 200){
+                    return;
+                }
                 if(req.query.expand !== 'true'){
                     if($result === null){
                         $result = [];
@@ -18,15 +23,22 @@ var app_helper = {
                     if($result === null) {
                         $result = {app : []};
                     }
+                    console.log(results[$i]);
                     Object.keys(results[$i].body.app).forEach(function($j){
                         results[$i].body.app[$j].attributes.push({
                             'name': 'orgname',
                             'value': results[$i].org
                         });
-                        $result.app.push(results[$i].body.app[$j]);
+                        $result.app.push(app_helper.add_org_info_to_app(results[$i].body.app[$j], results[$i].org, util));
                     });
                 }
             });
+            if($result == null) {
+                $result = [];
+                if(req.query.expand === 'true'){
+                    $result = {app : []};
+                }
+            }
             res.json($result);
             res.status(200).end();
         });
@@ -37,22 +49,92 @@ var app_helper = {
             Object.keys(results).forEach(function($i){
                 if(results[$i].status_code == 200) {
                     $result = results[$i].body;
-                    if(!$result.attributes){
-                        $result.attributes = [];
-                    }
-                    $result.attributes.push({
-                        'name': 'orgname',
-                        'value': results[$i].org
-                    });
+                    result = app_helper.add_org_info_to_app($result, results[$i].org, util);
                 }
             });
             if($result === null) {
-                res.status(400).end();
+                res.status(404).end();
             } else {
                 res.json($result);
                 res.status(200).end();
             }
         });
+    },
+    single_app_post_processor : function(resource, req, res, async, util) {
+        $orgs = app_helper.find_orgs_from_app(req.body, util);
+        if($orgs.length !== 1){
+            res.json({"error" : "Cannot figure out which edge org to generate app in.", "org" : $orgs})
+            res.status(500).end();
+        } else {
+            req.body = app_helper.remove_org_info_from_app(req.body, util);
+            Object.keys($orgs).forEach(function($i){
+                async.parallel([util.get_aggregator_task(req, resource, $orgs[$i])], function(err,results){
+                    res.json(results[0].body);
+                    res.status(results[0].status_code).end();
+                });
+            });
+        }
+    },
+    add_org_info_to_app: function(app, org, util){
+        if (app.apiProducts){
+            Object.keys(app.apiProducts).forEach(function($i){
+                app.apiProducts[$i] = util.format_product_name(org, app.apiProducts[$i]);
+            });
+        }
+        if (app.credentials) {
+            Object.keys(app.credentials).forEach(function($i){
+                Object.keys(app.credentials[$i].apiProducts).forEach(function($j){
+                    app.credentials[$i].apiProducts[$j].apiproduct = util.format_product_name(org, app.credentials[$i].apiProducts[$j].apiproduct);
+                });
+            });
+        }
+        if(!app.attributes){
+            app.attributes = [];
+        }
+        app.attributes.push({
+            'name': 'orgname',
+            'value': org
+        });
+
+        return app;
+    },
+    remove_org_info_from_app: function(app, util){
+        if (app.apiProducts){
+            Object.keys(app.apiProducts).forEach(function($i){
+                app.apiProducts[$i] = util.parse_product_from_str(app.apiProducts[$i]);
+            });
+        }
+        if (app.credentials) {
+            Object.keys(app.credentials).forEach(function($i){
+                Object.keys(app.credentials[$i].apiProducts).forEach(function($j){
+                    app.credentials[$i].apiProducts[$j].apiproduct = util.parse_product_from_str(app.credentials[$i].apiProducts[$j].apiproduct);
+                });
+            });
+        }
+        return app;
+    },
+    find_orgs_from_app: function(app, util){
+        $orgs = [];
+        if(app.attributes) {
+            _.map(app.attributes, function(val, key){
+                if(val.name == 'orgname'){
+                    $orgs.push(val.value);
+                }
+            });
+        }
+        if (app.apiProducts){
+            Object.keys(app.apiProducts).forEach(function($i){
+                $orgs.push(util.parse_org_from_product_name(app.apiProducts[$i]));
+            });
+        }
+        if (app.credentials) {
+            Object.keys(app.credentials).forEach(function($i){
+                Object.keys(app.credentials[$i].apiProducts).forEach(function($j){
+                    $orgs.push(util.parse_org_from_product_name(app.credentials[$i].apiProducts[$j].apiproduct));
+                });
+            });
+        }
+        return _.unique($orgs);
     }
 }
 module.exports.set = function(app, util, async) {
@@ -60,62 +142,104 @@ module.exports.set = function(app, util, async) {
     /**
      * API call to pull in apps from every org
      */
-    app.get('/o/:orgname/apps', function (req, res) {
-        app_helper.all_apps_get_processor("/apps", req, res, async, util);
+    app.all('/o/:orgname/apps', function (req, res) {
+        if(req.method == 'GET') {
+            app_helper.all_apps_get_processor("/apps", req, res, async, util);
+        } else {
+            res.status(403).end();
+        }
     });
 
     /**
      * Get an app for developer
      */
-    app.get('/o/:orgname/apps/:appid', function (req, res) {
-        app_helper.single_app_get_processor('/apps/' + req.params.appid, req, res, async, util);
+    app.all('/o/:orgname/apps/:appid', function (req, res) {
+        if(req.method == 'GET') {
+            app_helper.single_app_get_processor('/apps/' + req.params.appid, req, res, async, util);
+        } else {
+            console.log(req.body);
+        }
     });
 
     /**
      * Get all apps for developer
      */
-    app.get('/o/:orgname/developers/:email/apps', function (req, res) {
-        app_helper.all_apps_get_processor('/developers/' + req.params.email + '/apps', req, res, async, util);
+    app.all('/o/:orgname/developers/:email/apps', function (req, res) {
+        var resource = '/developers/' + req.params.email + '/apps';
+        if(req.method == 'POST' || req.method == 'PUT') {
+            app_helper.single_app_post_processor(resource, req, res, async, util);
+        } else if (req.method == 'GET') {
+            app_helper.all_apps_get_processor(resource, req, res, async, util);
+        } else if (req.method == 'DELETE') {
+            res.status(403).end();
+        }
     });
 
     /**
      * Handle POST/PUT on Developer App
      */
     app.all('/o/:orgname/developers/:email/apps/:appid', function (req, res) {
+        var resource = '/developers/' + req.params.email + '/apps/' + req.params.appid;
         if(req.method == 'GET') {
-            return app_helper.single_app_get_processor('/developers/' + req.params.email + '/apps/' + req.params.appid, req, res, async, util);
+            return app_helper.single_app_get_processor(resource, req, res, async, util);
         } else if(req.method == 'DELETE') {
-            async.parallel(util.get_aggregator_tasks(req, '/developers/' + req.params.email + '/apps/' + req.params.appid), function(err,results){
+            async.parallel(util.get_aggregator_tasks(req, resource), function(err,results){
                 res.status(201).end();
             });
-        } else if(req.method != 'POST' && req.method != 'PUT' && req.method != 'DELETE') {
-            res.status(404).end();
-            return;
-        }/*
-         orgname = req.params.orgname;
-         console.log(req.DeveloperApp);
-         for(var i in req.DeveloperApp.attributes){
-         if(req.DeveloperApp.attributes[i].name == 'orgname'){
-         orgname = req.DeveloperApp.attributes[i].value;
-         break;
-         }
-         }
-         var $headers = req.headers;
-         delete $headers.host;
-         var options =  {
-         'method': req.method,
-         'uri':  management_server + '/v1/o/' + orgname + '/developers/' + req.params.email + '/apps/' + req.params.appid,
-         'headers': $headers,
-         'qs': req.query
-         };
+        } else if(req.method == 'POST' || req.method == 'PUT') {
+            return app_helper.single_app_post_processor(resource, req, res, async, util);
+        }
+    });
 
-         if(req.method != 'DELETE') { //DELETE does not need body
-         options['json'] = req.body;
-         }
-         request(options, function (err, response, body) {
-         console.log(response);
-         res.send(body);
-         res.status(response.statusCode).end();
-         });*/
+    /**
+     * Generate key for app
+     */
+    app.all('/o/:orgname/developers/:email/apps/:appid/keys/:keyid', function (req, res) {
+        var resource = '/developers/' + req.params.email + '/apps/'+req.params.appid + "/keys/" + req.params.keyid;
+        if(req.method == 'POST' || req.method == 'PUT') {
+            console.log(req.body.apiProducts);
+            $orgs = app_helper.find_orgs_from_app(req.body, util);
+            req.body = app_helper.remove_org_info_from_app(req.body, util);
+            if($orgs.length === 1){
+                Object.keys($orgs).forEach(function($i){
+                    async.parallel([util.get_aggregator_task(req, resource, $orgs[$i])], function(err,results){
+                        console.log(results);
+                        res.json(results[0].body);
+                        res.status(results[0].status_code).end();
+                    });
+                });
+            } else {
+                res.json({"error" : "Cannot figure out which edge org to generate app in.", "org" : $orgs})
+                res.status(500).end();
+            }
+            //app_helper.single_app_post_processor(resource, req, res, async, util);
+        } else if (req.method == 'GET') {
+            //app_helper.all_apps_get_processor(resource, req, res, async, util);
+            res.status(403).end();
+        } else if (req.method == 'DELETE') {
+            res.status(403).end();
+        }
+    });
+    /**
+     * Key operation for App
+     */
+    app.all('/o/:orgname/developers/:email/apps/:appid/keys/:keyid/apiproducts/:apiproduct', function (req, res) {
+        $orgs = [];
+        $org = util.parse_org_from_product_name(req.params.apiproduct);
+        if($org !== null){
+            $orgs.push($org);
+        }
+        $apiproduct = util.parse_product_from_str(req.params.apiproduct);
+        var resource = '/developers/' + req.params.email + '/apps/'+req.params.appid + "/keys/" + req.params.keyid + "/apiproducts/" + $apiproduct;
+        if(req.method == 'POST' || req.method == 'PUT') {
+            res.status(403).end();
+        } else if (req.method == 'GET' || req.method == 'DELETE') {
+            Object.keys($orgs).forEach(function($i){
+                async.parallel([util.get_aggregator_task(req, resource, $orgs[$i])], function(err,results){
+                    res.json(results[0].body);
+                    res.status(results[0].status_code).end();
+                });
+            });
+        }
     });
 }

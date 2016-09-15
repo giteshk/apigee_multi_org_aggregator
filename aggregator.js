@@ -15,6 +15,9 @@ $routes = [
 Object.keys($routes).forEach(function($i){
     $routes[$i].set(app, util, async);
 });
+
+util.catch_all_route(app);
+
 app.listen(9000);
 
 

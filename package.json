@@ -17,7 +17,8 @@
         "body-parser": "*",
         "express": "*",
         "multer": "*",
-        "request": "*"
+        "request": "*",
+        "underscore": "*"
     },
     "license": "MIT",
     "files": [

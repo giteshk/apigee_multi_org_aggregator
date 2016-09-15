@@ -22,6 +22,7 @@ module.exports.set = function(app, util, async) {
                             'name': 'orgname',
                             'value': results[$i].org
                         });
+                        results[$i].body.apiProduct[$j].name = util.format_product_name(results[$i].org, results[$i].body.apiProduct[$j].name);
                         $result.apiProduct.push(results[$i].body.apiProduct[$j]);
                     });
                 }
@@ -70,6 +71,7 @@ module.exports.set = function(app, util, async) {
                         'name': 'orgname',
                         'value': results[$i].org
                     });
+                    $result.name = util.format_product_name(results[$i].org , $result.name);
                 }
             });
             if($result === null) {
