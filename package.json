@@ -1,0 +1,29 @@
+{
+    "name": "apigee_mutli_org_aggregator",
+    "description": "Module to aggregate developers/apps/apiproducts from multiple org in apigee edge and provide a consolidated view to the developer portal",
+    "author": {
+        "name": "Gitesh Koli",
+        "email": "gkoli@apigee.com"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/giteshk/apigee_mutli_org_aggregator.git"
+    },
+    "main": "aggregator.js",
+    "version": "1.0.0",
+    "dependencies": {
+        "apigee-access": "*",
+        "async": "*",
+        "body-parser": "*",
+        "express": "*",
+        "multer": "*",
+        "request": "*",
+    },
+    "license": "MIT",
+    "files": [
+        "underscore.js",
+        "underscore-min.js",
+        "underscore-min.map",
+        "LICENSE"
+    ],
+}
