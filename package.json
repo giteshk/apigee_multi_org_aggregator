@@ -17,7 +17,7 @@
         "body-parser": "*",
         "express": "*",
         "multer": "*",
-        "request": "*",
+        "request": "*"
     },
     "license": "MIT",
     "files": [
@@ -25,5 +25,5 @@
         "underscore-min.js",
         "underscore-min.map",
         "LICENSE"
-    ],
+    ]
 }
