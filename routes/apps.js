@@ -23,7 +23,6 @@ var app_helper = {
                     if($result === null) {
                         $result = {app : []};
                     }
-                    console.log(results[$i]);
                     Object.keys(results[$i].body.app).forEach(function($j){
                         results[$i].body.app[$j].attributes.push({
                             'name': 'orgname',
@@ -157,7 +156,7 @@ module.exports.set = function(app, util, async) {
         if(req.method == 'GET') {
             app_helper.single_app_get_processor('/apps/' + req.params.appid, req, res, async, util);
         } else {
-            console.log(req.body);
+            req.status(403).end();
         }
     });
 
@@ -197,13 +196,11 @@ module.exports.set = function(app, util, async) {
     app.all('/o/:orgname/developers/:email/apps/:appid/keys/:keyid', function (req, res) {
         var resource = '/developers/' + req.params.email + '/apps/'+req.params.appid + "/keys/" + req.params.keyid;
         if(req.method == 'POST' || req.method == 'PUT') {
-            console.log(req.body.apiProducts);
             $orgs = app_helper.find_orgs_from_app(req.body, util);
             req.body = app_helper.remove_org_info_from_app(req.body, util);
             if($orgs.length === 1){
                 Object.keys($orgs).forEach(function($i){
                     async.parallel([util.get_aggregator_task(req, resource, $orgs[$i])], function(err,results){
-                        console.log(results);
                         res.json(results[0].body);
                         res.status(results[0].status_code).end();
                     });
