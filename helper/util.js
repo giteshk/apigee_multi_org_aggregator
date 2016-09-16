@@ -56,20 +56,37 @@ var self = module.exports = {
         app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
         app.use(function(req,res,next){
-            console.log(req.method + "  " + req.url);
-            if(apigee.getMode() === apigee.APIGEE_MODE) {
-                if(all_orgs.length === 0) {
-                    res.json({error: "Org Configuration not set correctly in vault"})
-                    res.status(500).end();
-                } else {
-                    next();
-                }
-            }else {
-                Object.keys(all_orgs).forEach(function(i){
-                    all_orgs[i].authorization = req.headers.authorization;
+            request(
+                {
+                    'uri' : apiProxy.options.target + req.originalUrl.split("/").splice(0,3).join("/"),
+                    'headers': {
+                        'Authorization' : req.headers.authorization,
+                    }
+            }, function(_err, _response, _body){
+                    if(_response.statusCode !== 200){
+                        try{
+                            _body = JSON.parse(_body);
+                            res.json(_body);
+                        } catch($e){
+                            //Ignore parsing errors
+                        }
+                        res.status(_response.statusCode).end();
+                    } else {
+                        if(apigee.getMode() === apigee.APIGEE_MODE) {
+                            if(all_orgs.length === 0) {
+                                res.json({error: "Org Configuration not set correctly in vault"})
+                                res.status(500).end();
+                            } else {
+                                next();
+                            }
+                        }else {
+                            Object.keys(all_orgs).forEach(function(i){
+                                all_orgs[i].authorization = req.headers.authorization;
+                            });
+                            next();
+                        }
+                    }
                 });
-                next();
-            }
         });
 
     },
@@ -84,16 +101,7 @@ var self = module.exports = {
             app.all('*', function(req,res){
                 console.log("catch All : " + req.url);
                 var resource = req.url.split("/").splice(3).join("/");
-                //http://stackoverflow.com/questions/10435407/proxy-with-express-js
                 apiProxy.web(req, res);
-                /*
-                $tasks = self.get_aggregator_tasks(req, "/" + resource);
-                $tasks = $tasks.splice(0,1);
-                async.parallel($tasks, function(err,results){
-                    res.json(results[0].body);
-                    res.status(results[0].status_code).end();
-                });
-                */
             });
         }
     },
