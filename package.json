@@ -15,8 +15,8 @@
         "apigee-access": "*",
         "async": "*",
         "body-parser": "*",
+        "http-proxy": "*",
         "express": "*",
-        "multer": "*",
         "request": "*",
         "underscore": "*"
     },

@@ -2,6 +2,11 @@ var apigee = require('apigee-access');
 var async = require("async");
 var bodyParser = require('body-parser');
 var request = require('request');
+var httpProxy = require('http-proxy');
+var apiProxy = httpProxy.createProxyServer({
+    changeOrigin: true,
+    target: "https://api.enterprise.apigee.com/v1"
+});
 
 var all_orgs = [];
 
@@ -79,12 +84,16 @@ var self = module.exports = {
             app.all('*', function(req,res){
                 console.log("catch All : " + req.url);
                 var resource = req.url.split("/").splice(3).join("/");
+                //http://stackoverflow.com/questions/10435407/proxy-with-express-js
+                apiProxy.web(req, res);
+                /*
                 $tasks = self.get_aggregator_tasks(req, "/" + resource);
                 $tasks = $tasks.splice(0,1);
                 async.parallel($tasks, function(err,results){
                     res.json(results[0].body);
                     res.status(results[0].status_code).end();
                 });
+                */
             });
         }
     },
