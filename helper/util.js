@@ -3,10 +3,6 @@ var async = require("async");
 var bodyParser = require('body-parser');
 var request = require('request');
 var httpProxy = require('http-proxy');
-var apiProxy = httpProxy.createProxyServer({
-    changeOrigin: true,
-    target: "https://api.enterprise.apigee.com/v1"
-});
 
 var all_orgs = [];
 
@@ -51,14 +47,17 @@ if(apigee.getMode() === apigee.APIGEE_MODE) {
 }
 
 var self = module.exports = {
+    apiProxy : null,
+
     initialize : function(app){
         app.use(bodyParser.json()); // for parsing application/json
         app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
         app.use(function(req,res,next){
+            $default_org = req.originalUrl.split("/").splice(0,3)[2];
             request(
                 {
-                    'uri' : apiProxy.options.target + req.originalUrl.split("/").splice(0,3).join("/"),
+                    'uri' : all_orgs[$default_org]['endpoint'] + "/o/" + $default_org,
                     'headers': {
                         'Authorization' : req.headers.authorization,
                     }
@@ -72,6 +71,12 @@ var self = module.exports = {
                         }
                         res.status(_response.statusCode).end();
                     } else {
+                        //Pick up the configuration information for the orgname in the url and assign to apiProxy
+                        var $paths = req.url.split("/");
+                        self.apiProxy = httpProxy.createProxyServer({
+                            changeOrigin: true,
+                            target: all_orgs[$paths[2]]['endpoint'],
+                        });
                         if(apigee.getMode() === apigee.APIGEE_MODE) {
                             if(all_orgs.length === 0) {
                                 res.json({error: "Org Configuration not set correctly in vault"})
@@ -100,8 +105,7 @@ var self = module.exports = {
 
             app.all('*', function(req,res){
                 console.log("catch All : " + req.url);
-                var resource = req.url.split("/").splice(3).join("/");
-                apiProxy.web(req, res);
+                self.apiProxy.web(req, res);
             });
         }
     },
@@ -149,5 +153,21 @@ var self = module.exports = {
     },
     parse_org_from_product_name : function($product){
         return $product.indexOf("}}") === -1 ? null : $product.substr(2, $product.indexOf("}}") - 2);
+    },
+    sync_developer : function(developerId, requestType, fromOrg, toOrg, callback) {
+        var $fromOrg = all_orgs[fromOrg];
+        request({
+            'method' : "GET",
+            'uri' : $fromOrg['endpoint'] + "/o/" + fromOrg + "/developers/" + developerId,
+            'headers' : {
+                "Authorization" : $org['authorization'],
+                'Content-Type' : 'application/json'
+            }
+        }, function(err, response, body) {
+            console.log(err);
+            //console.log(response);
+            console.log(body);
+            callback();
+        });
     }
 }

@@ -166,7 +166,9 @@ module.exports.set = function(app, util, async) {
     app.all('/o/:orgname/developers/:email/apps', function (req, res) {
         var resource = '/developers/' + req.params.email + '/apps';
         if(req.method == 'POST' || req.method == 'PUT') {
-            app_helper.single_app_post_processor(resource, req, res, async, util);
+            util.sync_developer(req.params.developer_id, "app", req.params.orgname, "" , function(){
+                app_helper.single_app_post_processor(resource, req, res, async, util);
+            }
         } else if (req.method == 'GET') {
             app_helper.all_apps_get_processor(resource, req, res, async, util);
         } else if (req.method == 'DELETE') {

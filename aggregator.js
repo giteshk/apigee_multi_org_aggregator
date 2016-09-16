@@ -7,8 +7,8 @@ util.initialize(app);
 
 $routes = [
     require('./routes/apiproducts.js'),
-    require('./routes/apps.js'),
-    require('./routes/developers.js')
+    require('./routes/developers.js'),
+    require('./routes/apps.js')
 ];
 Object.keys($routes).forEach(function($i){
     $routes[$i].set(app, util, async);

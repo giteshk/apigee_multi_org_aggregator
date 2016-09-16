@@ -1,10 +1,11 @@
 /**
  * Developer related apis.
  */
+var request = require('request');
 
-
-module.exports = {
+var self = module.exports = {
     set : function(app, util, async) {
+/*
         //Get All Developers
         app.get('/o/:orgname/developers', function(req,res){
             async.parallel(util.get_aggregator_tasks(req, '/developers'), function(err,results){
@@ -80,9 +81,7 @@ module.exports = {
             res.status(403).end();
         });
 
-        /**
-         * All Individual Developer operations
-         */
+        // All Individual Developer operations
         app.all('/o/:orgname/developers/:developer_id', function (req, res) {
             async.parallel(util.get_aggregator_tasks(req, '/developers/' + req.params.developer_id), function(err,results){
                 $output = null;
@@ -115,6 +114,40 @@ module.exports = {
                     res.status($status_code).end();
                 }
             });
+        });
+*/
+        //Delete all Developers
+        app.all('/o/:orgname/developers', function(req,res){
+            if(req.method == 'DELETE') {
+                res.status(403).end();
+            } else {
+                //Pass everything on to the backend
+                util.apiProxy.web(req, res);
+            }
+        });
+
+        //Send all GET requests to the backend directly. It's assumed that the first org has all the developers
+
+        app.all('/o/:orgname/developers/:developer_id', function(req,res){
+            if(req.method == 'DELETE') {
+                async.parallel(util.get_aggregator_tasks(req, '/developers/' + req.params.developer_id), function(err,results){
+                    for(var i=0; i< results.length; i++) {
+                        if(results[i].org == req.params.orgname) {
+                            res.json(results[0].body);
+                            res.status(results[0].status_code).end();
+                            return;
+                        }
+                    }
+                });
+            } if (req.method == 'GET') {
+                util.apiProxy.web(req, res);
+            } else {
+                //The way sync works for developers is to update information if it exists.
+                util.apiProxy.on("proxyRes", function(proxyRes, req, res){
+                    util.sync_developer(req.params.developer_id, 'developer', req.params.orgname, "all");
+                });
+                util.apiProxy.web(req, res);
+            }
         });
     }
 }
