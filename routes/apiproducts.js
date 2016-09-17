@@ -1,4 +1,4 @@
-module.exports.set = function(app, util, async) {
+module.exports.routes = function(app, util, async) {
     // put more app route listings here
 
     //Aggregate all the API products from all the participating orgs

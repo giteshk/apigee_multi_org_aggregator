@@ -18,7 +18,8 @@
         "http-proxy": "*",
         "express": "*",
         "request": "*",
-        "underscore": "*"
+        "underscore": "*",
+        "validator" : "*"
     },
     "license": "MIT",
     "files": [

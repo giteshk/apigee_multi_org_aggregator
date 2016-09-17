@@ -1,6 +1,6 @@
 var _ = require('underscore')._;
 
-var app_helper = {
+var app_helper = module.exports.app_helper = {
 
     /**
      * App related api calls
@@ -24,10 +24,6 @@ var app_helper = {
                         $result = {app : []};
                     }
                     Object.keys(results[$i].body.app).forEach(function($j){
-                        results[$i].body.app[$j].attributes.push({
-                            'name': 'orgname',
-                            'value': results[$i].org
-                        });
                         $result.app.push(app_helper.add_org_info_to_app(results[$i].body.app[$j], results[$i].org, util));
                     });
                 }
@@ -136,7 +132,7 @@ var app_helper = {
         return _.unique($orgs);
     }
 }
-module.exports.set = function(app, util, async) {
+module.exports.routes = function(app, util, async) {
 
     /**
      * API call to pull in apps from every org
@@ -160,15 +156,54 @@ module.exports.set = function(app, util, async) {
         }
     });
 
+    //Paths to sync developers before app operations
+    $app_paths = ['/o/:orgname/developers/:email/apps','/o/:orgname/developers/:email/apps/:appid' ];
+    for(var i=0; i<$app_paths.length; i++){
+        app.use($app_paths[i], function(req, res, next){
+            if(req.method == 'POST' || req.method == 'PUT'){
+
+                $orgs = app_helper.find_orgs_from_app(req.body, util);
+                if($orgs.length==1){
+                    req._original_app_body = req.body;
+                    req._original_app_method = req.method;
+                    req.method = 'GET';
+                    $to_org = $orgs[0];
+                    $from_org = req.params.orgname;
+                    async.parallel([util.get_aggregator_task(req, "/developers/" + req.params.email, $from_org )],
+                    function(__err, __results){
+                        if(__results[0].status_code == 200){
+                            req.body = __results[0].body;
+                            req.body.developerId = req.body.email;
+                            req.method = 'POST';
+                            $tasks = [];
+                            $tasks.push(util.get_aggregator_task(req, "/developers", $to_org));
+                            $tasks.push(util.get_aggregator_task(req, "/developers/" + req.body.email, $to_org));
+                            async.parallel($tasks, function(_error, _results){
+                                //Fire and forget
+                                req.body = req._original_app_body;
+                                req.method = req._original_app_method;
+                                return next();
+                            });
+                        } else {
+                            next();
+                        }
+
+                    });
+                } else {
+                    next();
+                }
+            } else {
+                next();
+            }
+        });
+    }
     /**
      * Get all apps for developer
      */
     app.all('/o/:orgname/developers/:email/apps', function (req, res) {
         var resource = '/developers/' + req.params.email + '/apps';
         if(req.method == 'POST' || req.method == 'PUT') {
-            util.sync_developer(req.params.developer_id, "app", req.params.orgname, "" , function(){
-                app_helper.single_app_post_processor(resource, req, res, async, util);
-            }
+            app_helper.single_app_post_processor(resource, req, res, async, util);
         } else if (req.method == 'GET') {
             app_helper.all_apps_get_processor(resource, req, res, async, util);
         } else if (req.method == 'DELETE') {
@@ -192,53 +227,4 @@ module.exports.set = function(app, util, async) {
         }
     });
 
-    /**
-     * Generate key for app
-     */
-    app.all('/o/:orgname/developers/:email/apps/:appid/keys/:keyid', function (req, res) {
-        var resource = '/developers/' + req.params.email + '/apps/'+req.params.appid + "/keys/" + req.params.keyid;
-        if(req.method == 'POST' || req.method == 'PUT') {
-            $orgs = app_helper.find_orgs_from_app(req.body, util);
-            req.body = app_helper.remove_org_info_from_app(req.body, util);
-            if($orgs.length === 1){
-                Object.keys($orgs).forEach(function($i){
-                    async.parallel([util.get_aggregator_task(req, resource, $orgs[$i])], function(err,results){
-                        res.json(results[0].body);
-                        res.status(results[0].status_code).end();
-                    });
-                });
-            } else {
-                res.json({"error" : "Cannot figure out which edge org to generate app in.", "org" : $orgs})
-                res.status(500).end();
-            }
-            //app_helper.single_app_post_processor(resource, req, res, async, util);
-        } else if (req.method == 'GET') {
-            //app_helper.all_apps_get_processor(resource, req, res, async, util);
-            res.status(403).end();
-        } else if (req.method == 'DELETE') {
-            res.status(403).end();
-        }
-    });
-    /**
-     * Key operation for App
-     */
-    app.all('/o/:orgname/developers/:email/apps/:appid/keys/:keyid/apiproducts/:apiproduct', function (req, res) {
-        $orgs = [];
-        $org = util.parse_org_from_product_name(req.params.apiproduct);
-        if($org !== null){
-            $orgs.push($org);
-        }
-        $apiproduct = util.parse_product_from_str(req.params.apiproduct);
-        var resource = '/developers/' + req.params.email + '/apps/'+req.params.appid + "/keys/" + req.params.keyid + "/apiproducts/" + $apiproduct;
-        if(req.method == 'POST' || req.method == 'PUT') {
-            res.status(403).end();
-        } else if (req.method == 'GET' || req.method == 'DELETE') {
-            Object.keys($orgs).forEach(function($i){
-                async.parallel([util.get_aggregator_task(req, resource, $orgs[$i])], function(err,results){
-                    res.json(results[0].body);
-                    res.status(results[0].status_code).end();
-                });
-            });
-        }
-    });
 }
