@@ -1,6 +1,9 @@
 var _ = require('underscore')._;
 
 var app_helper = module.exports.app_helper = {
+    developer_app_transform_fn : function(data, req, res){
+        return data;
+    }
 
     /**
      * App related api calls
@@ -155,7 +158,6 @@ module.exports.routes = function(app, util, async) {
             req.status(403).end();
         }
     });
-
     //Paths to sync developers before app operations
     $app_paths = ['/o/:orgname/developers/:email/apps','/o/:orgname/developers/:email/apps/:appid' ];
     for(var i=0; i<$app_paths.length; i++){

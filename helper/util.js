@@ -50,7 +50,17 @@ if(apigee.getMode() === apigee.APIGEE_MODE) {
 }
 
 var self = module.exports = {
-    apiProxy : {},
+    cache : apigee.getCache("aggregator"),
+    apiProxy : function(req, org){
+        if(!org){
+            org = req.aggregator.orgname;
+        }
+        return httpProxy.createProxyServer({
+            changeOrigin: true,
+            target: all_orgs[org]['endpoint'],
+            auth : all_orgs[org]['auth']
+        });
+    },
 
     initialize : function(app){
         app.use(bodyParser.json()); // for parsing application/json
@@ -89,18 +99,50 @@ var self = module.exports = {
                             res.json({error: "Org Configuration not set correctly in vault"})
                             res.status(500).end();
                         } else {
-                            Object.keys(all_orgs).forEach(function(i){
-                                self.apiProxy[all_orgs[i]['org']] = httpProxy.createProxyServer({
-                                    changeOrigin: true,
-                                    target: all_orgs[i]['endpoint'],
-                                    auth : all_orgs[i]['auth']
-                                });
-                            });
                             next();
                         }
-
                     }
                 });
+        });
+
+        app.param('orgname', function(req, res, next, org){
+            req.aggregator = {};
+            req.aggregator.orgname = org;
+            next();
+        });
+        app.param('developer_id', function(req, res, next, developer_id){
+            var org = req.aggregator.orgname;
+            cache_key = org + ":" + developer_id;
+            self.cache.get(cache_key, function(err, body){
+                if(err){
+                    request({
+                        'method' : 'GET',
+                        'uri' : all_orgs[org]['endpoint'] + "/o/" + org + "/developers/" + developer_id,
+                        'headers' : {
+                            'Authorization' : all_orgs[org]['authorization'],
+                        }
+                    }, function (err, response, body){
+                        if(response.statusCode == 200) {
+                            try {
+                                body = JSON.parse(body);
+                            } catch($e){
+                                //Ignore parsing errors
+                            }
+                            body.developerId = body.email;
+                            body.apps = [];
+                            body.companies = [];
+                            req.aggregator.developer = body;
+                            cache.put(cache_key, body, 120);
+                            next();
+                        }else {
+                            res.status(404).end();
+                        }
+                    });
+                } else {
+                    req.aggregator.developer = body;
+                    next();
+                }
+            });
         });
         /*
          * Catch all function for when doing local development
@@ -109,7 +151,7 @@ var self = module.exports = {
          */
         app.all('/o/:orgname', function(req,res){
             if(req.method == "GET") {
-                self.apiProxy[req.params.orgname].web(req, res);
+                self.apiProxy(req).web(req, res);
             }else {
                 res.status(403).end();
             }
@@ -124,8 +166,7 @@ var self = module.exports = {
 
     catch_all_route : function(app) {
         app.all('/o/:orgname/*', function(req,res){
-            console.log("catch All : " + req.url);
-            self.apiProxy[req.params.orgname].web(req, res);
+            self.apiProxy(req).web(req, res);
         });
     },
     get_aggregator_task : function(req, resource, org_name){
@@ -176,9 +217,5 @@ var self = module.exports = {
     },
     parse_org_from_product_name : function($product){
         return $product.indexOf("}}") === -1 ? null : $product.substr(2, $product.indexOf("}}") - 2);
-    },
-    sync_developer_routes : function(app, util, async){
-
-
     }
 }

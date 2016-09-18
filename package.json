@@ -19,7 +19,8 @@
         "express": "*",
         "request": "*",
         "underscore": "*",
-        "validator" : "*"
+        "validator" : "*",
+        "transformer-proxy" : "*"
     },
     "license": "MIT",
     "files": [
