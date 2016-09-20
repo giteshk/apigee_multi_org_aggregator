@@ -77,7 +77,7 @@ module.exports.routes = function(app, util, async) {
             if($result === null) {
                 res.status(400).end();
             } else {
-                res.json($result);
+                res.write(JSON.stringify($result));
                 res.status(200).end();
             }
         });

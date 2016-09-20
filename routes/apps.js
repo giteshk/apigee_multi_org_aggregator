@@ -1,9 +1,6 @@
 var _ = require('underscore')._;
 
 var app_helper = module.exports.app_helper = {
-    developer_app_transform_fn : function(data, req, res){
-        return data;
-    }
 
     /**
      * App related api calls
@@ -27,7 +24,9 @@ var app_helper = module.exports.app_helper = {
                         $result = {app : []};
                     }
                     Object.keys(results[$i].body.app).forEach(function($j){
-                        $result.app.push(app_helper.add_org_info_to_app(results[$i].body.app[$j], results[$i].org, util));
+                        app_helper.replace_developerId(results[$i].body.app[$j], req);
+                        app_helper.add_org_info_to_app(results[$i].body.app[$j], results[$i].org, util)
+                        $result.app.push(results[$i].body.app[$j]);
                     });
                 }
             });
@@ -37,7 +36,7 @@ var app_helper = module.exports.app_helper = {
                     $result = {app : []};
                 }
             }
-            res.json($result);
+            res.write(JSON.stringify($result));
             res.status(200).end();
         });
     },
@@ -46,31 +45,43 @@ var app_helper = module.exports.app_helper = {
             $result = null;
             Object.keys(results).forEach(function($i){
                 if(results[$i].status_code == 200) {
+                    if(!req.aggregator.app_info){
+                        req.aggregator.app_info = {}
+                    }
+                    req.aggregator.app_info = {};
+                    req.aggregator.app_info.org = results[$i].org;
                     $result = results[$i].body;
-                    result = app_helper.add_org_info_to_app($result, results[$i].org, util);
+                    req.aggregator.app_info.app = $result.name;
                 }
             });
             if($result === null) {
                 res.status(404).end();
             } else {
-                res.json($result);
+                res.write(JSON.stringify($result));
                 res.status(200).end();
             }
         });
     },
-    single_app_post_processor : function(resource, req, res, async, util) {
-        $orgs = app_helper.find_orgs_from_app(req.body, util);
+    app_processor_single : function(req, res, util) {
+        if((req.method == 'GET' || req.method == 'DELETE') && req.aggregator.app_info) {
+            $orgs = [req.aggregator.app_info.org];
+        }else {
+            $orgs = app_helper.find_orgs_from_app(req.body, util);
+        }
         if($orgs.length !== 1){
-            res.json({"error" : "Cannot figure out which edge org to generate app in.", "org" : $orgs})
+            res.write(JSON.stringify({"error" : "Cannot figure out which edge org to generate app in.", "org" : $orgs}));
             res.status(500).end();
         } else {
-            req.body = app_helper.remove_org_info_from_app(req.body, util);
-            Object.keys($orgs).forEach(function($i){
-                async.parallel([util.get_aggregator_task(req, resource, $orgs[$i])], function(err,results){
-                    res.json(results[0].body);
-                    res.status(results[0].status_code).end();
-                });
-            });
+            apiproxy = util.apiProxy(req, $orgs[0]);
+            if(req.body) {
+                app_helper.remove_org_info_from_app(req.body, util);
+            }
+            apiproxy.web(req, res);
+        }
+    },
+    replace_developerId : function(app, req){
+        if(req.aggregator.developer && req.aggregator.developer.email) {
+            app.developerId = req.aggregator.developer.email;
         }
     },
     add_org_info_to_app: function(app, org, util){
@@ -89,12 +100,22 @@ var app_helper = module.exports.app_helper = {
         if(!app.attributes){
             app.attributes = [];
         }
-        app.attributes.push({
-            'name': 'orgname',
-            'value': org
-        });
-
-        return app;
+        var org_attribute_found = false;
+        for(var i=0; i<app.attributes.length; i++){
+            if(app.attributes[i].name == 'orgname') {
+                org_attribute_found = true;
+                break;
+            }
+        }
+        if(!org_attribute_found) {
+            app.attributes.push({
+                'name': 'orgname',
+                'value': org
+            });
+        }
+        if(app.name) {
+            app.name = util.format_product_name(org, app.name);
+        }
     },
     remove_org_info_from_app: function(app, util){
         if (app.apiProducts){
@@ -109,7 +130,9 @@ var app_helper = module.exports.app_helper = {
                 });
             });
         }
-        return app;
+        if(app.name) {
+            app.name = util.parse_product_from_str(app.name);
+        }
     },
     find_orgs_from_app: function(app, util){
         $orgs = [];
@@ -159,7 +182,7 @@ module.exports.routes = function(app, util, async) {
         }
     });
     //Paths to sync developers before app operations
-    $app_paths = ['/o/:orgname/developers/:email/apps','/o/:orgname/developers/:email/apps/:appid' ];
+    $app_paths = ['/o/:orgname/developers/:developer_id/apps','/o/:orgname/developers/:developer_id/apps/:appname' ];
     for(var i=0; i<$app_paths.length; i++){
         app.use($app_paths[i], function(req, res, next){
             if(req.method == 'POST' || req.method == 'PUT'){
@@ -171,7 +194,7 @@ module.exports.routes = function(app, util, async) {
                     req.method = 'GET';
                     $to_org = $orgs[0];
                     $from_org = req.params.orgname;
-                    async.parallel([util.get_aggregator_task(req, "/developers/" + req.params.email, $from_org )],
+                    async.parallel([util.get_aggregator_task(req, "/developers/" + req.params.developer_id, $from_org )],
                     function(__err, __results){
                         if(__results[0].status_code == 200){
                             req.body = __results[0].body;
@@ -202,10 +225,10 @@ module.exports.routes = function(app, util, async) {
     /**
      * Get all apps for developer
      */
-    app.all('/o/:orgname/developers/:email/apps', function (req, res) {
-        var resource = '/developers/' + req.params.email + '/apps';
+    app.all('/o/:orgname/developers/:developer_id/apps', function (req, res) {
+        var resource = '/developers/' + req.params.developer_id + '/apps';
         if(req.method == 'POST' || req.method == 'PUT') {
-            app_helper.single_app_post_processor(resource, req, res, async, util);
+            app_helper.app_processor_single(req, res, util);
         } else if (req.method == 'GET') {
             app_helper.all_apps_get_processor(resource, req, res, async, util);
         } else if (req.method == 'DELETE') {
@@ -216,17 +239,16 @@ module.exports.routes = function(app, util, async) {
     /**
      * Handle POST/PUT on Developer App
      */
-    app.all('/o/:orgname/developers/:email/apps/:appid', function (req, res) {
-        var resource = '/developers/' + req.params.email + '/apps/' + req.params.appid;
-        if(req.method == 'GET') {
-            return app_helper.single_app_get_processor(resource, req, res, async, util);
-        } else if(req.method == 'DELETE') {
-            async.parallel(util.get_aggregator_tasks(req, resource), function(err,results){
-                res.status(201).end();
-            });
-        } else if(req.method == 'POST' || req.method == 'PUT') {
-            return app_helper.single_app_post_processor(resource, req, res, async, util);
-        }
+    app.all('/o/:orgname/developers/:developer_id/apps/:appname', function (req, res) {
+        app_helper.app_processor_single(req, res, util);
     });
+
+    app.param("appname", function (req, res, next, appname){
+        req.aggregator.app_info = {
+            org : util.parse_org_from_product_name(appname),
+            app : util.parse_product_from_str(appname),
+        }
+        next();
+    })
 
 }

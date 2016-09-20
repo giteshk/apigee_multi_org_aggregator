@@ -4,6 +4,8 @@ var bodyParser = require('body-parser');
 var request = require('request');
 var httpProxy = require('http-proxy');
 var _ = require('underscore')._;
+var transformerProxy =  require('transformer-proxy');
+
 
 var all_orgs = [];
 if(apigee.getMode() === apigee.APIGEE_MODE) {
@@ -35,7 +37,7 @@ if(apigee.getMode() === apigee.APIGEE_MODE) {
         'gkli' :
         {
             org: 'gkli',
-            endpoint : 'https://api.enterprise.apigee.com/v1',
+            endpoint : 'https://gkli-prod.apigee.net/mgmt-proxy-test',
             authorization : '',
             auth: '',
         },
@@ -50,23 +52,76 @@ if(apigee.getMode() === apigee.APIGEE_MODE) {
 }
 
 var self = module.exports = {
-    cache : apigee.getCache("aggregator"),
+    cache : function() {
+        return apigee.getCache("aggregator");
+    },
     apiProxy : function(req, org){
         if(!org){
             org = req.aggregator.orgname;
         }
-        return httpProxy.createProxyServer({
-            changeOrigin: true,
-            target: all_orgs[org]['endpoint'],
-            auth : all_orgs[org]['auth']
+        var path = decodeURI(req.url).split("/").splice(3);
+        path = _.map(path, function(val){
+            return self.parse_product_from_str(val);
         });
-    },
 
+        if(path.length > 0) {
+            path = "/" + path.join("/");
+        }
+        console.log(all_orgs[org]['endpoint'] + '/o/' + all_orgs[org]['org'] +  path);
+        var server =  httpProxy.createProxyServer({
+            changeOrigin: true,
+            target: all_orgs[org]['endpoint'] + '/o/' + all_orgs[org]['org'] +  path,
+            auth : all_orgs[org]['auth'],
+            ignorePath : true,
+            onError : function(err){
+                console.log(err);
+                throw new Exception(err);
+            }
+            });
+        server.on("proxyReq" , function (proxyReq, req, res, options){
+            if(req.body) {
+                var bodyData = JSON.stringify(req.body);
+                // incase if content-type is application/x-www-form-urlencoded -> we need to change to application/json
+                proxyReq.setHeader('Content-Type','application/json');
+                proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+                // stream the content
+                proxyReq.write(bodyData);
+            }
+        });
+        return server;
+    },
+    transform_proxy_output : function(data, req, res){
+        var is_json = false;
+        try{
+            data = JSON.parse(data.toString());
+            is_json = true;
+            res.setHeader('Content-Type', 'application/json');
+        } catch($e){
+
+        }
+        if(data.developer && data.apps){
+            data = require("../routes/developers.js").developers_transform_fn(data);
+        } else if(data.appId && req.aggregator.app_info) {
+            app_helper = require("../routes/apps.js").app_helper;
+            app_helper.replace_developerId(data, req);
+            app_helper.add_org_info_to_app(data, req.aggregator.app_info.org, self);
+        } else {
+            console.log("no transform applied");
+        }
+        return is_json ? JSON.stringify(data) : data;
+    },
     initialize : function(app){
         app.use(bodyParser.json()); // for parsing application/json
 //        app.use(bodyParser.urlencoded({ extended: false })); // for parsing application/x-www-form-urlencoded
+//        app.use("/o/:orgname/developers/:developer_id", transformerProxy(self.transform_proxy_output));
+//        app.use("/o/:orgname/apps/:appid", transformerProxy(self.transform_proxy_output));
+//        app.use("/o/:orgname/apps", transformerProxy(self.transform_proxy_output));
+//        app.use("/o/:orgname/developers/:developer_id/apps", transformerProxy(self.transform_proxy_output));
+//        app.use("/o/:orgname/developers/:developer_id/apps/:appname", transformerProxy(self.transform_proxy_output));
+        app.use(transformerProxy(self.transform_proxy_output));
 
         app.use(function(req,res,next){
+            console.log(">>>>>>>>>>>" + req.method + " " + req.url);
             $default_org = req.originalUrl.split("/")[2];
             if(!all_orgs[$default_org]) {
                 res.status(401).end();
@@ -112,34 +167,32 @@ var self = module.exports = {
         });
         app.param('developer_id', function(req, res, next, developer_id){
             var org = req.aggregator.orgname;
-            cache_key = org + ":" + developer_id;
-            self.cache.get(cache_key, function(err, body){
-                if(err){
-                    request({
-                        'method' : 'GET',
-                        'uri' : all_orgs[org]['endpoint'] + "/o/" + org + "/developers/" + developer_id,
-                        'headers' : {
-                            'Authorization' : all_orgs[org]['authorization'],
-                        }
-                    }, function (err, response, body){
-                        if(response.statusCode == 200) {
-                            try {
-                                body = JSON.parse(body);
-                            } catch($e){
-                                //Ignore parsing errors
+            var cache_key = "developer_id:"+ developer_id;
+            var dev_cache = self.cache();
+            dev_cache.get(cache_key, function(err, cache_value){
+                if(!cache_value){
+                    var original_method = req.method;
+                    req.method = 'GET';
+                    async.parallel(self.get_aggregator_tasks(req, '/developers/' + req.params.developer_id), function(err,results){
+                        for(var i=0; i< results.length; i++) {
+                            if(results[i].status_code == 200) {
+                                req.method = original_method;
+                                results[i].body.developerId = req.aggregator.email;
+                                results[i].body.apps = [];
+                                results[i].body.companies = [];
+                                req.aggregator.developer = results[i].body;
+                                req.aggregator.orgname = results[i].org;
+                                dev_cache.put(cache_key, req.aggregator.developer, 120);
+                                return next();
                             }
-                            body.developerId = body.email;
-                            body.apps = [];
-                            body.companies = [];
-                            req.aggregator.developer = body;
-                            cache.put(cache_key, body, 120);
-                            next();
-                        }else {
-                            res.status(404).end();
                         }
                     });
                 } else {
-                    req.aggregator.developer = body;
+                    try {
+                        req.aggregator.developer = JSON.parse(cache_value);
+                    } catch($e){
+                        //Ignore parsing errors
+                    }
                     next();
                 }
             });
@@ -172,28 +225,30 @@ var self = module.exports = {
     get_aggregator_task : function(req, resource, org_name){
         var $org = all_orgs[org_name];
         var $task = function (callback){
-            request({
-                'method': req.method,
-                'uri': $org['endpoint'] + '/o/' + $org['org'] + resource,
-                'headers': {
-                    'Accept': req.header('accept'),
-                    'Authorization' : $org['authorization'],
-                    'Content-Type' : req.header('content-type'),
-                },
-                'qs': req.query,
-                'body' : JSON.stringify(req.body),
-            }, function (err, response, body) {
-                if(err) {
-                    return callback(null, {error: err});
-                } else {
-                    try{
-                        body = JSON.parse(body);
-                    } catch($e){
-                        //Ignore parsing errors
+            setTimeout( function(){
+                request({
+                    'method': req.method,
+                    'uri': $org['endpoint'] + '/o/' + $org['org'] + resource,
+                    'headers': {
+                        'Accept': req.header('accept'),
+                        'Authorization' : $org['authorization'],
+                        'Content-Type' : req.header('content-type'),
+                    },
+                    'qs': req.query,
+                    'body' : JSON.stringify(req.body),
+                }, function (err, response, body) {
+                    if(err) {
+                        return callback(null, {error: err});
+                    } else {
+                        try{
+                            body = JSON.parse(body);
+                        } catch($e){
+                            //Ignore parsing errors
+                        }
+                        return callback(null, {org: $org['org'], body: body, status_code:  response.statusCode , response_headers : response.headers});
                     }
-                    return callback(null, {org: $org['org'], body: body, status_code:  response.statusCode , response_headers : response.headers});
-                }
-            });
+                });
+            }, 50);
         }
         return $task;
     },
