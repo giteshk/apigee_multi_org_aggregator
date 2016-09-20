@@ -27,7 +27,7 @@ module.exports.routes = function(app, util, async) {
                     });
                 }
             });
-            res.json($result);
+            res.write(JSON.stringify($result));
             res.status(200).end();
         });
     });
@@ -59,27 +59,15 @@ module.exports.routes = function(app, util, async) {
      * This will pick the first API product and send it to the client
      */
     app.get('/o/:orgname/apiproducts/:product_name', function (req, res) {
-        async.parallel(util.get_aggregator_tasks(req, "/apiproducts/" + req.params.product_name), function(err,results){
-            $result = null;
-            Object.keys(results).forEach(function($i){
-                if(results[$i].status_code == 200) {
-                    $result = results[$i].body;
-                    if(!$result.attributes){
-                        $result.attributes = [];
-                    }
-                    $result.attributes.push({
-                        'name': 'orgname',
-                        'value': results[$i].org
-                    });
-                    $result.name = util.format_product_name(results[$i].org , $result.name);
-                }
-            });
-            if($result === null) {
-                res.status(400).end();
-            } else {
-                res.write(JSON.stringify($result));
-                res.status(200).end();
-            }
-        });
+        apiproxy = util.apiProxy(req, req.aggregator.product_info.org);
+        apiproxy.web(req, res);
+    });
+
+    app.param('product_name', function(req, res, next, product_name){
+        req.aggregator.product_info = {
+            org : util.parse_org_from_product_name(product_name),
+            product : util.parse_product_from_str(product_name),
+        };
+        next();
     });
 }
