@@ -6,56 +6,60 @@ var httpProxy = require('http-proxy');
 var _ = require('underscore')._;
 var transformerProxy =  require('transformer-proxy');
 
-
-
 var self = module.exports = {
     all_orgs : [],
     cache : function() {
         return apigee.getCache("aggregator");
     },
-    read_org_info : function(){
+    read_org_info : function(req , res, $default_org, _main_callback){
         if(apigee.getMode() === apigee.APIGEE_MODE) {
-            var orgVault = apigee.getVault('aggregator_org_info', 'organization');
+            var orgVault = apigee.getVault('aggregator_org_info');
             orgVault.getKeys(function(err, $orgs){
                 var tasks = [];
-                console.log($orgs);
-                Object.keys($orgs).forEach(function($i){
-                    this.push(function(callback){
-                        orgVault.get($orgs[$i], function(er, val){
-                            callback(null, val);
+                if(_.indexOf($orgs, $default_org) === -1) {
+                    res.status(500).end();
+                } else {
+                    Object.keys($orgs).forEach(function($i){
+                        this.push(function(callback){
+                            orgVault.get($orgs[$i], function(er, val){
+                                callback(null, val);
+                            });
                         });
+                    }, tasks);
+                    async.parallel(tasks, function(err, rs){
+                        Object.keys(rs).forEach(function(j){
+                            $r = rs[j].split(",");
+                            self.all_orgs[$r[0]] = {
+                                endpoint : $r[1],
+                                org: $r[0],
+                                authorization: "Basic " + new Buffer($r[2] + ":" + $r[3]).toString("base64"),
+                                auth : $r[2] + ":" + $r[3],
+                            };
+                        });
+                        _main_callback();
                     });
-                }, tasks);
-                async.parallel(tasks, function(err, rs){
-                    Object.keys(rs).forEach(function(j){
-                        $r = rs[j].split(",");
-                        self.all_orgs[$r[1]] = {
-                            endpoint : $r[0],
-                            org: $r[1],
-                            authorization: "Basic " + new Buffer($r[2] + ":" + $r[3]).toString("base64"),
-                            auth : $r[2] + ":" + $r[3],
-                        };
-                    });
-
-                });
+                }
             });
         } else {
+            $authorization = req.headers.authorization;
+            $auth = (new Buffer($authorization.substr("Basic ".length), 'base64')).toString();
             self.all_orgs = {
                 'gkli' :
                 {
                     org: 'gkli',
                     endpoint : 'https://gkli-prod.apigee.net/mgmt-proxy-test',
-                    authorization : '',
-                    auth: '',
+                    authorization : $authorization,
+                    auth: $auth,
                 },
                 'gkoli_orgadmin3':
                 {
                     org: 'gkoli_orgadmin3',
                     endpoint : 'https://api.enterprise.apigee.com/v1',
-                    authorization: '',
-                    auth: '',
+                    authorization: $authorization,
+                    auth: $auth,
                 }
             };
+            _main_callback();
         }
     },
     apiProxy : function(req, org){
@@ -63,7 +67,6 @@ var self = module.exports = {
             org = req.aggregator.orgname;
         }
         var path = decodeURI(req.url.split("?").shift()).split("/").splice(3);
-        console.log(path);
         path = _.map(path, function(val){
             return self.parse_product_from_str(val);
         });
@@ -71,7 +74,6 @@ var self = module.exports = {
         if(path.length > 0) {
             path = "/" + path.join("/");
         }
-        console.log(self.all_orgs[org]['endpoint'] + '/o/' + self.all_orgs[org]['org'] +  path);
         var server =  httpProxy.createProxyServer({
             changeOrigin: true,
             target: self.all_orgs[org]['endpoint'] + '/o/' + self.all_orgs[org]['org'] +  path,
@@ -110,34 +112,23 @@ var self = module.exports = {
             app_helper.replace_developerId(data, req);
             app_helper.add_org_info_to_app(data, req.aggregator.app_info.org, self);
         } else {
-            console.log("no transform applied");
+            //console.log("no transform applied");
         }
         return is_json ? JSON.stringify(data) : data;
     },
     initialize : function(app){
-        app.use(bodyParser.json()); // for parsing application/json
-//        app.use(bodyParser.urlencoded({ extended: false })); // for parsing application/x-www-form-urlencoded
-//        app.use("/o/:orgname/developers/:developer_id", transformerProxy(self.transform_proxy_output));
-//        app.use("/o/:orgname/apps/:appid", transformerProxy(self.transform_proxy_output));
-//        app.use("/o/:orgname/apps", transformerProxy(self.transform_proxy_output));
-//        app.use("/o/:orgname/developers/:developer_id/apps", transformerProxy(self.transform_proxy_output));
-//        app.use("/o/:orgname/developers/:developer_id/apps/:appname", transformerProxy(self.transform_proxy_output));
+        app.use(bodyParser.json());
         app.use(transformerProxy(self.transform_proxy_output));
 
-        app.use(function(req,res,next){
-            console.log(">>>>>>>>>>>" + req.method + " " + req.url);
-            $default_org = req.originalUrl.split("/")[2];
-            if(!self.all_orgs[$default_org]) {
-                res.status(401).end();
-                return;
-            }
-            request(
+        app.param('orgname', function(req, res, next, $default_org){
+            self.read_org_info(req, res, $default_org, function(){
+                request(
                 {
                     'uri' : self.all_orgs[$default_org]['endpoint'] + "/o/" + $default_org,
                     'headers': {
                         'Authorization' : req.headers.authorization,
                     }
-            }, function(_err, _response, _body){
+                }, function(_err, _response, _body){
                     if(_response.statusCode !== 200){
                         try{
                             _body = JSON.parse(_body);
@@ -147,27 +138,12 @@ var self = module.exports = {
                         }
                         res.status(_response.statusCode).end();
                     } else {
-                        if(apigee.getMode() !== apigee.APIGEE_MODE) {
-                            Object.keys(self.all_orgs).forEach(function(i){
-                                self.all_orgs[i].authorization = req.headers.authorization;
-                                self.all_orgs[i].auth = (new Buffer(req.headers.authorization.substr("Basic ".length), 'base64')).toString();
-
-                            });
-                        }
-                        if(self.all_orgs.length === 0) {
-                            res.json({error: "Org Configuration not set correctly in vault"})
-                            res.status(500).end();
-                        } else {
-                            next();
-                        }
+                        req.aggregator = {};
+                        req.aggregator.orgname = $default_org;
+                        next();
                     }
                 });
-        });
-
-        app.param('orgname', function(req, res, next, org){
-            req.aggregator = {};
-            req.aggregator.orgname = org;
-            next();
+            });
         });
         app.param('developer_id', function(req, res, next, developer_id){
             var org = req.aggregator.orgname;
@@ -190,6 +166,7 @@ var self = module.exports = {
                                 return next();
                             }
                         }
+                        return res.status(404).end();
                     });
                 } else {
                     try {
@@ -200,6 +177,13 @@ var self = module.exports = {
                     next();
                 }
             });
+        });
+
+    },
+
+    catch_all_route : function(app) {
+        app.all('/o/:orgname/*', function(req,res){
+            self.apiProxy(req).web(req, res);
         });
         /*
          * Catch all function for when doing local development
@@ -213,18 +197,24 @@ var self = module.exports = {
                 res.status(403).end();
             }
         });
+        /*
+         * Catch all function for when doing local development
+         *
+         * This will run the calls against the first org in the settings
+         */
+        app.all('/organizations/:orgname', function(req,res){
+            if(req.method == "GET") {
+                self.apiProxy(req).web(req, res);
+            }else {
+                res.status(403).end();
+            }
+        });
         //Redirect /organizations/* to /o/*
         app.all('/organizations/*',function(req, res){
             req.url = "/o/" + req.url.substring("/organizations/".length);
             app.handle(req, res);
         });
 
-    },
-
-    catch_all_route : function(app) {
-        app.all('/o/:orgname/*', function(req,res){
-            self.apiProxy(req).web(req, res);
-        });
     },
     get_aggregator_task : function(req, resource, org_name){
         var $org = self.all_orgs[org_name];
