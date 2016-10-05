@@ -18,7 +18,7 @@ Purpose of this project is to create a nodejs proxy to allow a developer portal 
  with the one this proxy is deployed on. (proxy verifies the credentials passed from the developer portal against the current org before proceeding)
 
 **This proxy needs an update to developer portal code base so that the machine name is not validated when editing existing apps.**
-**Proxy adds {{orgname}} to the internal name to keep track of where the product exists**
+**Proxy adds {{orgname}} to the internal name to keep track of where the app exists**
 
 ### API Products
  API products are aggregated from all organizations on the add an app page.
