@@ -15,9 +15,12 @@
         "apigee-access": "*",
         "async": "*",
         "body-parser": "*",
+        "http-proxy": "*",
         "express": "*",
-        "multer": "*",
         "request": "*",
+        "underscore": "*",
+        "validator" : "*",
+        "transformer-proxy" : "*"
     },
     "license": "MIT",
     "files": [
@@ -25,5 +28,5 @@
         "underscore-min.js",
         "underscore-min.map",
         "LICENSE"
-    ],
+    ]
 }
