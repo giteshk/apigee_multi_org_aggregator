@@ -15,9 +15,9 @@ Purpose of this project is to create a nodejs proxy to allow a developer portal 
         e.g. gkli,https://api.enterprise.apigee.com/v1,edgeorgadmin@apigee.com,edgePa55w0rd
      * You can add multiple organizations
 6. In the developer portal you would use the orgadmin credentials for the org that this proxy is deployed to and replace the endpoint
- with the one the proxy is deployed on. (proxy verifies the credentials passed from the developer portal against the current org before proceeding)
+ with the one this proxy is deployed on. (proxy verifies the credentials passed from the developer portal against the current org before proceeding)
 
-**This proxy needs an update to developer portal code base so that the machine name is not validated when editing existing apps**
+**This proxy needs an update to developer portal code base so that the machine name is not validated when editing existing apps.**
 **Proxy adds {{orgname}} to the internal name to keep track of where the product exists**
 
 ### API Products
