@@ -47,7 +47,7 @@ var self = module.exports = {
                 'gkli' :
                 {
                     org: 'gkli',
-                    endpoint : 'https://gkli-prod.apigee.net/mgmt-proxy-test',
+                    endpoint : 'https://api.enterprise.apigee.com/v1',
                     authorization : $authorization,
                     auth: $auth,
                 },
