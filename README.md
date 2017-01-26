@@ -6,7 +6,7 @@ Purpose of this project is to create a nodejs proxy to allow a developer portal 
 1. Clone the project.
 2. Download the dependencies using _npm install_
 3. Install the proxy using
-    _apigeetool deploynodeapp -u <username> -o <org> -e <env> -n 'Apigee-Multi-Org-Aggregator' -d . -m aggregator.js -b /multiorg_
+    _apigeetool deploynodeapp -u < username> -o < org> -e < env> -n 'Apigee-Multi-Org-Aggregator' -d . -m aggregator.js -b /multiorg_
 4. Create a vault with the name __aggregator_org_info__
 5. Add the entries of the orgs that you want to connect using this proxy
      * MGMT API to [Create a vault entry](http://docs.apigee.com/management/apis/post/organizations/%7Borg_name%7D/environments/%7Benv_name%7D/vaults/%7Bvault_name_in_env%7D/entries)
