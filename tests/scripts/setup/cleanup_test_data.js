@@ -9,7 +9,7 @@ var $auth = {
     'pass': password,
 };
 
-var util = require("./util.js");
+var util = require("./lib/util.js");
 
 util.cleanupApps(mgmt_endpoint, $auth);
 util.cleanupAPIProducts(mgmt_endpoint, $auth);

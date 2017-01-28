@@ -1,0 +1,22 @@
+queue:
+- name: get-all-developers
+  rate: 1/s
+
+- name: get-individual-developers
+  rate: 10/s
+
+- name: get-all-apps
+  rate: 10/s
+
+- name: get-all-developer-apps
+  rate: 10/s
+
+- name: get-each-developer-apps
+  rate: 10/s
+
+- name: create-developer-app
+  rate: 10/s
+
+- name: delete-developer-app
+  rate: 10/s
+

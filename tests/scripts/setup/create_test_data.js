@@ -9,7 +9,7 @@ var $auth = {
     'pass': password,
 };
 
-var util = require("./util.js");
+var util = require("./lib/util.js");
 
 $count_of_products = util.createTestAPIProducts(mgmt_endpoint, $auth, orgname, number_of_records);
 util.createTestDevelopers(mgmt_endpoint, $auth, number_of_records);

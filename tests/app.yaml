@@ -1,0 +1,20 @@
+runtime: php55
+api_version: 1
+
+handlers:
+
+# Serve php scripts.
+- url: /monitor/create_queue_items
+  script: create_tasks.php
+  login: admin
+
+- url: /analytics/all_developers
+  script: scripts/tasks/get_all_developers.php
+  login: admin
+
+- url: /analytics/all_apps
+  script: scripts/tasks/get_all_apps.php
+  login: admin
+
+- url: /*
+  script: index.php
