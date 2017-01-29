@@ -5,11 +5,14 @@
  * Date: 1/27/17
  * Time: 2:07 PM
  */
+use google\appengine\api\taskqueue\PushTask;
+use google\appengine\api\taskqueue\PushQueue;
 
 if(FALSE && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(500);
     exit;
 }
+
 $developer_stats = [];
 foreach($_REQUEST['orgs'] as $org) {
     $time = time();
@@ -29,6 +32,11 @@ foreach($_REQUEST['orgs'] as $org) {
     $time_elapsed_secs = microtime(true) - $start;
     $developers = json_decode($result);
    $developer_stats[$org] = ['count' => count($developers), 'total_time' => $time_elapsed_secs, 'timestamp' => $time];
+  foreach($developers as $developer){
+    $task = new PushTask('/analytics/individual_developers', ['org' => $org, 'developer' => $developer], ['method' => 'POST']);
+    $queue = new PushQueue("get-individual-developers");
+    $queue->addTasks([$task]);
+  }
 }
 
 $conn = new pdo('mysql:unix_socket=/cloudsql/apigee-aggregator:us-central1:aggregator;dbname=analytics_db', 'root', '');

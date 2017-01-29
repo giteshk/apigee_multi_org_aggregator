@@ -37,6 +37,5 @@ foreach($developer_stats as $org => $info) {
     $query = "INSERT INTO analytics values('{$org}', 'all_apps', {$info['timestamp']}, '', '*', {$info['total_time']}, {$info['count']})";
     $conn->query($query);
 }
-// $conn->close();
 http_response_code(200);
 exit;

@@ -1,6 +1,6 @@
 queue:
 - name: get-all-developers
-  rate: 1/s
+  rate: 10/s
 
 - name: get-individual-developers
   rate: 10/s
