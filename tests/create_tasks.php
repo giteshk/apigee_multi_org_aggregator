@@ -12,21 +12,23 @@ use google\appengine\api\taskqueue\PushQueue;
 $orgs = ['gitesh', 'gitesh1', 'gitesh2', 'gitesh3'];
 
 //All Developers count
-$task = new PushTask('/analytics/all_developers', ['orgs' => $orgs], ['method' => 'POST']);
-$queue = new PushQueue("get-all-developers");
-$queue->addTasks([$task]);
+foreach ($orgs as $org) {
+    $task = new PushTask('/analytics/all_developers', ['orgs' => [$org]], ['method' => 'POST']);
+    $queue = new PushQueue("get-all-developers");
+    $queue->addTasks([$task]);
 
 //All Developers expanded
-$task = new PushTask('/analytics/all_developers_expanded', ['orgs' => $orgs], ['method' => 'POST']);
-$queue = new PushQueue("get-all-developers");
-$queue->addTasks([$task]);
+    $task = new PushTask('/analytics/all_developers_expanded', ['orgs' => [$org]], ['method' => 'POST']);
+    $queue = new PushQueue("get-all-developers");
+    $queue->addTasks([$task]);
 
 
 //All Apps count
-$task = new PushTask('/analytics/all_apps', ['orgs' => $orgs], ['method' => 'POST']);
-$queue = new PushQueue("get-all-apps");
-$queue->addTasks([$task]);
+    $task = new PushTask('/analytics/all_apps', ['orgs' => [$org]], ['method' => 'POST']);
+    $queue = new PushQueue("get-all-apps");
+    $queue->addTasks([$task]);
 
-$task = new PushTask('/analytics/all_apps_expanded', ['orgs' => $orgs], ['method' => 'POST']);
-$queue = new PushQueue("get-all-apps");
-$queue->addTasks([$task]);
+    $task = new PushTask('/analytics/all_apps_expanded', ['orgs' => [$org]], ['method' => 'POST']);
+    $queue = new PushQueue("get-all-apps");
+    $queue->addTasks([$task]);
+}

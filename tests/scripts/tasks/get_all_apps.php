@@ -6,36 +6,21 @@
  * Time: 2:07 PM
  */
 
-if($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(500);
     exit;
 }
-$developer_stats = [];
-foreach($_REQUEST['orgs'] as $org) {
-    $time = time();
-    $curl = curl_init( 'https://api.enterprise.apigee.com/v1/o/' . $org . '/apps');
-  $headers = [
-    'Accept: application/json',
-    'Authorization: Basic ' . base64_encode('gitesh@gkoli.info:p0o9i8U7'),
-  ];
+require './execute_request.php';
 
-  $options = [
-    CURLOPT_HTTPHEADER => $headers,
-    CURLOPT_RETURNTRANSFER => true,
-  ];
-  curl_setopt_array($curl, $options);
-  $start = microtime(true);
-  $result = curl_exec($curl);
-  $time_elapsed_secs = microtime(true) - $start;
-  $developers = json_decode($result);
-  $developer_stats[$org] = ['count' => count($developers), 'total_time' => $time_elapsed_secs, 'timestamp' => $time];
+$org_url_mapping = [];
+foreach ($_REQUEST['orgs'] as $org) {
+    $org_url_mapping[$org] = 'https://api.enterprise.apigee.com/v1/o/' . $org . '/apps';
 }
 
-$conn = new pdo('mysql:unix_socket=/cloudsql/apigee-aggregator:us-central1:aggregator;dbname=analytics_db', 'root', '');
+$count_function = function ($response_obj) {
+    return count($response_obj);
+};
+$all_responses = execute_aggregator_request($org_url_mapping, "all_apps", '', '*', $count_function);
 
-foreach($developer_stats as $org => $info) {
-    $query = "INSERT INTO analytics values('{$org}', 'all_apps', {$info['timestamp']}, '', '*', {$info['total_time']}, {$info['count']})";
-    $conn->query($query);
-}
-http_response_code(200);
+http_response_code(count($all_responses)>0 ? 200 : 500);
 exit;
