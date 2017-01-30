@@ -11,7 +11,7 @@ queue:
 - name: get-all-developer-apps
   rate: 10/s
 
-- name: get-each-developer-apps
+- name: get-individual-developer-apps
   rate: 10/s
 
 - name: create-developer-app
