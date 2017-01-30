@@ -12,8 +12,16 @@ handlers:
   script: scripts/tasks/get_all_developers.php
   login: admin
 
+- url: /analytics/all_developers_expanded
+  script: scripts/tasks/get_all_developers_expanded.php
+  login: admin
+
 - url: /analytics/all_apps
   script: scripts/tasks/get_all_apps.php
+  login: admin
+
+- url: /analytics/all_apps_expanded
+  script: scripts/tasks/get_all_apps_expanded.php
   login: admin
 
 - url: /analytics/individual_developers

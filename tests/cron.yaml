@@ -1,4 +1,4 @@
 cron:
 - description: "Create queue items for monitoring"
   url: /monitor/create_queue_items
-  schedule: every 30 minutes
+  schedule: every 15 minutes
