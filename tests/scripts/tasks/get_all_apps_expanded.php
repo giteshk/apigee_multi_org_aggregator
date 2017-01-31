@@ -14,7 +14,7 @@ require './execute_request.php';
 
 $org_url_mapping = [];
 foreach ($_REQUEST['orgs'] as $org) {
-    $org_url_mapping[$org] = 'https://api.enterprise.apigee.com/v1/o/' . $org . '/apps?expand=true';
+    $org_url_mapping[$org] = '/o/' . $org . '/apps?expand=true';
 }
 
 $count_function = function ($response_obj) {

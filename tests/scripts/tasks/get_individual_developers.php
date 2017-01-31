@@ -19,7 +19,7 @@ $developer = $_REQUEST['developer'];
 
 
 $org_url_mapping = [];
-$org_url_mapping[$org] = 'https://api.enterprise.apigee.com/v1/o/' . $org . '/developers/' . $developer;
+$org_url_mapping[$org] = '/o/' . $org . '/developers/' . $developer;
 
 
 $count_function = function ($response_obj) {

@@ -9,9 +9,14 @@
 function execute_aggregator_request($org_url_mapping, $metric, $developer, $app , $count_function) {
     $all_responses = [];
     $request_stats = [];
-    $url = array_values($org_url_mapping)[0];
-    $apigee_proxy_url = str_replace("https://api.enterprise.apigee.com/v1", "https://gitesh-prod.apigee.net/multiorg", $url);
-    foreach($org_url_mapping + ['apigee_proxy' => $apigee_proxy_url] as $org => $url) {
+    $new_org_url_mapping = $org_url_mapping;
+    foreach($org_url_mapping as $org=>$url) {
+        $new_org_url_mapping[$org] = "https://gitesh-prod.apigee.net/mgmt" . $url;
+        if($org == 'gitesh') {
+            $new_org_url_mapping['apigee_proxy'] = "https://gitesh-prod.apigee.net/multiorg" . $url;
+        }
+    }
+    foreach($new_org_url_mapping as $org => $url) {
         $time = time();
         $curl = curl_init( $url);
         $headers = [
