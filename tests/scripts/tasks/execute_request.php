@@ -12,8 +12,8 @@ function execute_aggregator_request($org_url_mapping, $metric, $developer, $app 
     $new_org_url_mapping = $org_url_mapping;
     foreach($org_url_mapping as $org=>$url) {
         $new_org_url_mapping[$org] = "https://gitesh-prod.apigee.net/mgmt" . $url;
-        if($org == 'gitesh') {
-            $new_org_url_mapping['apigee_proxy'] = "https://gitesh-prod.apigee.net/multiorg" . $url;
+        if($org == get_aggregator_proxy_fake_org_name()) {
+            $new_org_url_mapping[$org] = "https://gitesh-prod.apigee.net/multiorg" . str_replace("/" . get_aggregator_proxy_fake_org_name() ."/", "/" . get_aggregator_proxy_deployed_org() . "/", $url);
         }
     }
     foreach($new_org_url_mapping as $org => $url) {
@@ -52,4 +52,15 @@ function execute_aggregator_request($org_url_mapping, $metric, $developer, $app 
     }
     $conn = null;
     return $all_responses;
+}
+
+function get_aggregator_proxy_deployed_org(){
+    return get_all_aggregated_orgs()[0];
+}
+
+function get_aggregator_proxy_fake_org_name(){
+    return 'aggregator_proxy';
+}
+function get_all_aggregated_orgs() {
+    return ['gitesh', 'gitesh1', 'gitesh2', 'gitesh3', 'aggregator_proxy'];
 }
