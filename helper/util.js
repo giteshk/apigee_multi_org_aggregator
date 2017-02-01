@@ -44,20 +44,34 @@ var self = module.exports = {
             $authorization = req.headers.authorization;
             $auth = (new Buffer($authorization.substr("Basic ".length), 'base64')).toString();
             self.all_orgs = {
-                'gkli' :
-                {
-                    org: 'gkli',
-                    endpoint : 'https://api.enterprise.apigee.com/v1',
-                    authorization : $authorization,
-                    auth: $auth,
-                },
-                'gkoli_orgadmin3':
-                {
-                    org: 'gkoli_orgadmin3',
-                    endpoint : 'https://api.enterprise.apigee.com/v1',
-                    authorization: $authorization,
-                    auth: $auth,
-                }
+                'gitesh' :
+                    {
+                        org: 'gitesh',
+                        endpoint : 'https://api.enterprise.apigee.com/v1',
+                        authorization : $authorization,
+                        auth: $auth,
+                    },
+                'gitesh1' :
+                    {
+                        org: 'gitesh1',
+                        endpoint : 'https://api.enterprise.apigee.com/v1',
+                        authorization : $authorization,
+                        auth: $auth,
+                    },
+                'gitesh2' :
+                    {
+                        org: 'gitesh2',
+                        endpoint : 'https://api.enterprise.apigee.com/v1',
+                        authorization : $authorization,
+                        auth: $auth,
+                    },
+                'gitesh3' :
+                    {
+                        org: 'gitesh3',
+                        endpoint : 'https://api.enterprise.apigee.com/v1',
+                        authorization : $authorization,
+                        auth: $auth,
+                    }
             };
             _main_callback();
         }

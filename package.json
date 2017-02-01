@@ -28,5 +28,8 @@
         "underscore-min.js",
         "underscore-min.map",
         "LICENSE"
-    ]
+    ],
+    "scripts": {
+        "start": "node aggregator.js"
+    }
 }

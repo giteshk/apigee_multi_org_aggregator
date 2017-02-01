@@ -1,5 +1,5 @@
-var express = require('express');
-var app = express();
+const express = require('express');
+const app = express();
 var async = require("async");
 var util = require("./helper/util.js");
 
@@ -14,8 +14,10 @@ require('./routes/developers.js').routes(app, util, async);
 
 util.catch_all_route(app);
 
-app.listen(9000, function(){
-    console.log("listening on 9000");
+const PORT = process.env.PORT || 8080;
+
+app.listen(PORT, function(){
+    console.log("listening on " + PORT);
 });
 
 

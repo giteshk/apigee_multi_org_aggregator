@@ -4,6 +4,7 @@ queue:
 
 - name: get-individual-developers
   rate: 10/s
+  bucket_size : 50
 
 - name: get-all-apps
   rate: 10/s
@@ -13,6 +14,11 @@ queue:
 
 - name: get-individual-developer-apps
   rate: 10/s
+  bucket_size : 50
+
+- name: get-individual-developer-app
+  rate: 10/s
+  bucket_size : 50
 
 - name: create-developer-app
   rate: 10/s

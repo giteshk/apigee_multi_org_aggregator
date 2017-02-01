@@ -17,20 +17,21 @@ require './execute_request.php';
 
 $org = $_REQUEST['org'];
 $developer = $_REQUEST['developer'];
+$app = $_REQUEST['app'];
 
 $org_url_mapping = [];
-$org_url_mapping[$org] = '/o/' . $org . '/developers/' . $developer . '/apps';
+$org_url_mapping[$org] = '/o/' . $org . '/developers/' . $developer . '/apps?expand=true';
 
 
 $count_function = function ($response_obj) {
-    return count($response_obj);
+    return isset($response_obj->app) ? count($response_obj->app) : 0;
 };
-$all_responses = execute_aggregator_request($org_url_mapping, $developer, '*', $count_function);
+$all_responses = execute_aggregator_request($org_url_mapping, $developer, $app, $count_function);
 
 $tasks = [];
 foreach($all_responses as $org => $response) {
-    foreach($response as $app) {
-        $tasks[] = new PushTask('/analytics/developers/developer/apps/app', ['org' => $org, 'developer' => $developer, 'app' => $app], ['method' => 'POST']);
+    foreach($response->app as $app) {
+        $tasks[] = new PushTask('/analytics/developers/developer/apps/app', ['org' => $org, 'developer' => $developer, 'app' => $app->name], ['method' => 'POST']);
     }
 }
 if(!empty($tasks)) {

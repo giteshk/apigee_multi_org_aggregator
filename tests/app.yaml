@@ -1,5 +1,6 @@
 runtime: php55
 api_version: 1
+service : tests
 
 handlers:
 
@@ -8,28 +9,36 @@ handlers:
   script: create_tasks.php
   login: admin
 
-- url: /analytics/all_developers
+- url: /analytics/developers
   script: scripts/tasks/get_all_developers.php
   login: admin
 
-- url: /analytics/all_developers_expanded
+- url: /analytics/developers_expanded
   script: scripts/tasks/get_all_developers_expanded.php
   login: admin
 
-- url: /analytics/all_apps
+- url: /analytics/apps
   script: scripts/tasks/get_all_apps.php
   login: admin
 
-- url: /analytics/all_apps_expanded
+- url: /analytics/apps_expanded
   script: scripts/tasks/get_all_apps_expanded.php
   login: admin
 
-- url: /analytics/individual_developers
+- url: /analytics/developers/developer
   script: scripts/tasks/get_individual_developers.php
   login: admin
 
-- url: /analytics/individual_developer_apps
+- url: /analytics/developers/developer/apps
   script: scripts/tasks/get_individual_developer_apps.php
+  login: admin
+
+- url: /analytics/developers/developer/apps_expanded
+  script: scripts/tasks/get_individual_developer_apps_expanded.php
+  login: admin
+
+- url: /analytics/developers/developer/apps/app
+  script: scripts/tasks/get_individual_developer_app.php
   login: admin
 
 - url: /*

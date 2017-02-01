@@ -12,14 +12,17 @@ if(FALSE && $_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require './execute_request.php';
 
+$org = $_REQUEST['org'];
+$developer = $_REQUEST['developer'];
+$app = $_REQUEST['app'];
+
 $org_url_mapping = [];
-foreach ($_REQUEST['orgs'] as $org) {
-    $org_url_mapping[$org] = '/o/' . $org . '/developers?expand=true';
-}
+$org_url_mapping[$org] = '/o/' . $org . '/developers/' . $developer . '/apps/' . $app;
+
 
 $count_function = function ($response_obj) {
-    return isset($response_obj->developer) ? count($response_obj->developer) : 0;
+    return isset($response_obj->appId) ? 1 : 0;
 };
-$all_responses = execute_aggregator_request($org_url_mapping, '*', '', $count_function);
+$all_responses = execute_aggregator_request($org_url_mapping, $developer, $app, $count_function);
 http_response_code(count($all_responses)>0 ? 200 : 500);
 exit;

@@ -6,14 +6,14 @@
  * Time: 3:40 PM
  */
 
-function execute_aggregator_request($org_url_mapping, $metric, $developer, $app , $count_function) {
+function execute_aggregator_request($org_url_mapping, $developer, $app , $count_function) {
     $all_responses = [];
     $request_stats = [];
     $new_org_url_mapping = $org_url_mapping;
     foreach($org_url_mapping as $org=>$url) {
         $new_org_url_mapping[$org] = "https://gitesh-prod.apigee.net/mgmt" . $url;
         if($org == get_aggregator_proxy_fake_org_name()) {
-            $new_org_url_mapping[$org] = "https://gitesh-prod.apigee.net/multiorg" . str_replace("/" . get_aggregator_proxy_fake_org_name() ."/", "/" . get_aggregator_proxy_deployed_org() . "/", $url);
+            $new_org_url_mapping[$org] = "https://apigee-aggregator.appspot.com" . str_replace("/" . get_aggregator_proxy_fake_org_name() ."/", "/" . get_aggregator_proxy_deployed_org() . "/", $url);
         }
     }
     foreach($new_org_url_mapping as $org => $url) {
@@ -47,7 +47,7 @@ function execute_aggregator_request($org_url_mapping, $metric, $developer, $app 
     $conn = new pdo('mysql:unix_socket=/cloudsql/apigee-aggregator:us-central1:aggregator;dbname=analytics_db', 'root', '');
 
     foreach($request_stats as $org => $info) {
-        $query = "INSERT INTO analytics values('{$org}', '{$metric}', {$info['timestamp']}, '{$developer}', '{$app}', {$info['total_time']}, {$info['count']})";
+        $query = "INSERT INTO analytics values('{$org}', '{$_SERVER['REQUEST_URI']}', {$info['timestamp']}, '{$developer}', '{$app}', {$info['total_time']}, {$info['count']})";
         $conn->query($query);
     }
     $conn = null;

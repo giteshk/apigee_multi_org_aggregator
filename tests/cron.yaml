@@ -2,3 +2,4 @@ cron:
 - description: "Create queue items for monitoring"
   url: /monitor/create_queue_items
   schedule: every 30 minutes
+  target: tests

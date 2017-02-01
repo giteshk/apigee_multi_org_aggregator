@@ -20,7 +20,7 @@ foreach ($_REQUEST['orgs'] as $org) {
 $count_function = function ($response_obj) {
     return count($response_obj);
 };
-$all_responses = execute_aggregator_request($org_url_mapping, "all_apps", '', '*', $count_function);
+$all_responses = execute_aggregator_request($org_url_mapping, '', '*', $count_function);
 
 http_response_code(count($all_responses)>0 ? 200 : 500);
 exit;

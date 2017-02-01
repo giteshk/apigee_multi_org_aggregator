@@ -17,7 +17,7 @@ var app_helper = module.exports.app_helper = {
                         $result = [];
                     }
                     Object.keys(results[$i].body).forEach(function($j){
-                        $result.push(results[$i].body[$j]);
+                        $result.push(util.format_product_name(results[$i].org, results[$i].body[$j]));
                     });
                 } else {
                     if($result === null) {

@@ -13,23 +13,25 @@ require "./scripts/tasks/execute_request.php";
 
 $orgs = get_all_aggregated_orgs();
 
+foreach($orgs as $org) {
 //All Developers count
 
-    $task = new PushTask('/analytics/all_developers', ['orgs' => $orgs], ['method' => 'POST']);
+    $task = new PushTask('/analytics/developers', ['orgs' => [$org]], ['method' => 'POST']);
     $queue = new PushQueue("get-all-developers");
     $queue->addTasks([$task]);
 
 //All Developers expanded
-    $task = new PushTask('/analytics/all_developers_expanded', ['orgs' => $orgs], ['method' => 'POST']);
+    $task = new PushTask('/analytics/developers_expanded', ['orgs' => [$org]], ['method' => 'POST']);
     $queue = new PushQueue("get-all-developers");
     $queue->addTasks([$task]);
 
 
 //All Apps count
-    $task = new PushTask('/analytics/all_apps', ['orgs' => $orgs], ['method' => 'POST']);
+    $task = new PushTask('/analytics/apps', ['orgs' => [$org]], ['method' => 'POST']);
     $queue = new PushQueue("get-all-apps");
     $queue->addTasks([$task]);
 
-    $task = new PushTask('/analytics/all_apps_expanded', ['orgs' => $orgs], ['method' => 'POST']);
+    $task = new PushTask('/analytics/apps_expanded', ['orgs' => [$org]], ['method' => 'POST']);
     $queue = new PushQueue("get-all-apps");
     $queue->addTasks([$task]);
+}
