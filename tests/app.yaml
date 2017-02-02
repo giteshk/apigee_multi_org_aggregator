@@ -21,6 +21,10 @@ handlers:
   script: scripts/tasks/get_all_apps.php
   login: admin
 
+- url: /analytics/apps/app
+  script: scripts/tasks/get_individual_app.php
+  login: admin
+
 - url: /analytics/apps_expanded
   script: scripts/tasks/get_all_apps_expanded.php
   login: admin

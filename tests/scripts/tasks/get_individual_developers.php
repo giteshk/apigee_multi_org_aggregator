@@ -28,6 +28,10 @@ $count_function = function ($response_obj) {
 };
 $all_responses = execute_aggregator_request($org_url_mapping, $developer, '.', $count_function);
 
+
+http_response_code(count($all_responses)>0 ? 200 : 500);
+exit;
+
 $tasks = [];
 if(isset($all_responses[$org])) {
     foreach($all_responses[$org]->apps as $app){

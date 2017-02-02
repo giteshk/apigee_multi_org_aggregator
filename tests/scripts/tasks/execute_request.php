@@ -11,9 +11,10 @@ function execute_aggregator_request($org_url_mapping, $developer, $app , $count_
     $request_stats = [];
     $new_org_url_mapping = $org_url_mapping;
     foreach($org_url_mapping as $org=>$url) {
-        $new_org_url_mapping[$org] = "https://gitesh-prod.apigee.net/mgmt" . $url;
+        $new_org_url_mapping[$org] = "https://api.enterprise.apigee.com/v1" . $url;
         if($org == get_aggregator_proxy_fake_org_name()) {
-            $new_org_url_mapping[$org] = "https://apigee-aggregator.appspot.com" . str_replace("/" . get_aggregator_proxy_fake_org_name() ."/", "/" . get_aggregator_proxy_deployed_org() . "/", $url);
+            //$new_org_url_mapping[$org] = "http://apigee-aggregator.appspot.com" . str_replace("/" . get_aggregator_proxy_fake_org_name() ."/", "/" . get_aggregator_proxy_deployed_org() . "/", $url);
+          $new_org_url_mapping[$org] = "http://127.0.0.1" . str_replace("/" . get_aggregator_proxy_fake_org_name() ."/", "/" . get_aggregator_proxy_deployed_org() . "/", $url);
         }
     }
     foreach($new_org_url_mapping as $org => $url) {

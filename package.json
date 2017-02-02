@@ -29,6 +29,9 @@
         "underscore-min.map",
         "LICENSE"
     ],
+    "engines": {
+        "node": ">=6.9.1"
+    },
     "scripts": {
         "start": "node aggregator.js"
     }

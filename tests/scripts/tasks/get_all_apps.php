@@ -22,5 +22,18 @@ $count_function = function ($response_obj) {
 };
 $all_responses = execute_aggregator_request($org_url_mapping, '', '*', $count_function);
 
+$tasks = [];
+foreach($all_responses as $org => $app){
+  foreach($developers as $developer) {
+    $tasks[] = new PushTask('/analytics/apps/app', ['org' => $org, 'app' => $app], ['method' => 'POST']);
+  }
+}
+if(!empty($tasks)) {
+  $queue = new PushQueue("get-individual-app");
+  foreach(array_chunk($tasks, 100) as $task_chunk) {
+    $queue->addTasks($task_chunk);
+  }
+}
+
 http_response_code(count($all_responses)>0 ? 200 : 500);
 exit;

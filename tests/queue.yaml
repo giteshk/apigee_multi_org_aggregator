@@ -9,6 +9,10 @@ queue:
 - name: get-all-apps
   rate: 10/s
 
+- name: get-individual-app
+  rate: 10/s
+  bucket_size : 50
+
 - name: get-all-developer-apps
   rate: 10/s
 
