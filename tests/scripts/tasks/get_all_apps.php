@@ -6,7 +6,7 @@
  * Time: 2:07 PM
  */
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if (FALSE && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(500);
     exit;
 }

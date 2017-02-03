@@ -14,9 +14,10 @@ function execute_aggregator_request($org_url_mapping, $developer, $app , $count_
         $new_org_url_mapping[$org] = "https://api.enterprise.apigee.com/v1" . $url;
         if($org == get_aggregator_proxy_fake_org_name()) {
             //$new_org_url_mapping[$org] = "http://apigee-aggregator.appspot.com" . str_replace("/" . get_aggregator_proxy_fake_org_name() ."/", "/" . get_aggregator_proxy_deployed_org() . "/", $url);
-          $new_org_url_mapping[$org] = "http://127.0.0.1" . str_replace("/" . get_aggregator_proxy_fake_org_name() ."/", "/" . get_aggregator_proxy_deployed_org() . "/", $url);
+          $new_org_url_mapping[$org] = "http://localhost/apigee_multi_org_aggregator/tests/index.php?q=" . str_replace("/" . get_aggregator_proxy_fake_org_name() ."/", "/" . get_aggregator_proxy_deployed_org() . "/", $url);
         }
     }
+
     foreach($new_org_url_mapping as $org => $url) {
         $time = time();
         $curl = curl_init( $url);
@@ -45,7 +46,8 @@ function execute_aggregator_request($org_url_mapping, $developer, $app , $count_
         curl_close($curl);
     }
 
-    $conn = new pdo('mysql:unix_socket=/cloudsql/apigee-aggregator:us-central1:aggregator;dbname=analytics_db', 'root', '');
+    //$conn = new pdo('mysql:unix_socket=/cloudsql/apigee-aggregator:us-central1:aggregator;dbname=analytics_db', 'root', '');
+    $conn = new pdo('mysql:host=localhost;dbname=aggregator', 'root', 'root');
 
     foreach($request_stats as $org => $info) {
         $query = "INSERT INTO analytics values('{$org}', '{$_SERVER['REQUEST_URI']}', {$info['timestamp']}, '{$developer}', '{$app}', {$info['total_time']}, {$info['count']})";
@@ -63,5 +65,5 @@ function get_aggregator_proxy_fake_org_name(){
     return 'aggregator_proxy';
 }
 function get_all_aggregated_orgs() {
-    return ['gitesh', 'gitesh1', 'gitesh2', 'gitesh3', 'aggregator_proxy'];
+    return ['gitesh', 'gitesh1', 'gitesh2', 'gitesh3', get_aggregator_proxy_fake_org_name()];
 }

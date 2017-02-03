@@ -1,9 +1,11 @@
 <?php
 
+set_time_limit(120);
 $orgs = ['gitesh', 'gitesh1', 'gitesh2', 'gitesh3'];
 $mgmt_endpoint = "https://api.enterprise.apigee.com/v1";
 
-$request_uri = str_replace($_SERVER['SCRIPT_NAME'] . "/", '', $_SERVER['REQUEST_URI']);
+//$request_uri = str_replace($_SERVER['SCRIPT_NAME'] . "/", '', $_SERVER['REQUEST_URI']);
+$request_uri = substr(urldecode($_REQUEST['q']), 1);
 $url_obj = parse_url($request_uri);
 $query = isset($url_obj['query']) ? $url_obj['query'] : '';
 $request_uri = $url_obj['path'];
@@ -39,7 +41,9 @@ if (count($args) >= 3) {
           $orgs = [$args[1]];
         }
       }
+
       if ($_SERVER['REQUEST_METHOD'] === 'GET'){// patterns like /o/orgname/apps or o/orgname/apiproducts
+
         $headers = getallheaders();
         unset($headers['Host']);
         foreach ($headers as $name => $value) {
@@ -52,6 +56,7 @@ if (count($args) >= 3) {
           $headers[$org]['request'] = $formatted_headers;
           $_args = $args;
           $_args[1] = $org;
+          error_log(" calling : " . "$mgmt_endpoint/" . implode("/", $_args) . ($query ? "?$query" : ""));
           $ch[$org] = curl_init("$mgmt_endpoint/" . implode("/", $_args) . ($query ? "?$query" : ""));
           curl_setopt($ch[$org], CURLOPT_HTTPHEADER, $formatted_headers);
           curl_setopt($ch[$org], CURLOPT_RETURNTRANSFER, 1);
@@ -62,14 +67,13 @@ if (count($args) >= 3) {
         //execute the handles
         do {
           $mrc = curl_multi_exec($mh, $active);
-          curl_multi_select($mh);
         } while ($mrc == CURLM_CALL_MULTI_PERFORM);
 
         while ($active && $mrc == CURLM_OK) {
           if (curl_multi_select($mh) != -1) {
             do {
               $mrc = curl_multi_exec($mh, $active);
-            } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+            } while ($active && ($mrc == CURLM_CALL_MULTI_PERFORM));
           }
         }
 
